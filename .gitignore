@@ -2,3 +2,5 @@ build*
 *.svg
 *.png
 *.jpg
+/subprojects/*
+/subprojects/plutosvg.wrap

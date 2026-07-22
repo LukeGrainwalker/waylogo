@@ -1,4 +1,4 @@
-project('waylogo', 'c')
+project('waylogo', 'c', version:'0.01')
 
 wayland_scanner_dep = dependency('wayland-scanner',
   fallback: 'wayland',
@@ -31,4 +31,5 @@ xdg_shell_header = custom_target('xdg_shell_h',
   command: [wayland_scanner, 'client-header', '@INPUT@', '@OUTPUT@'],
 )
 
-executable(meson.project_name(), ['main.c', xdg_shell_code, xdg_shell_header], dependencies:[wldep, wayland_protos])
+cairodep = dependency('cairo')
+executable(meson.project_name(), ['main.c', xdg_shell_code, xdg_shell_header], dependencies:[wldep, wayland_protos, cairodep])

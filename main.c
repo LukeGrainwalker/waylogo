@@ -7,11 +7,12 @@
 
 #include <wayland-client.h>
 #include "xdg-shell-protocol.h"
+#include <cairo.h>
 
-//struct wl_compositor *compositor;
-//struct wl_shm *shm;
-//struct xdg_wm_base *shell;
-
+/**
+ * report a message to the console
+ * TODO use better log systems
+ */
 void report(char* msg){
 	printf("%s\n", msg);
 	fflush(stdin);
@@ -31,24 +32,69 @@ struct window_state {
 	/*Settings*/
 	int32_t width;
 	int32_t height;
+	enum xdg_toplevel_state tlstate;
+	enum xdg_toplevel_state current;
+	int changed; //is set when there was a change made to the dimensions since the last xdg_surface config
+	/*Render*/
+	void (*render_handler)(uint32_t* buf, int width, int height);
 };
+
+/**
+ * Draws a checkerboard pattern, for testing puroses.
+ */
+void checker(uint32_t *buf, int width, int height){
+	for (int y = 0; y < height; ++y) {
+		for (int x = 0; x < width; ++x) {
+			if ((x + (y / 8 * 8))%16 < 8) {
+				buf[y * width + x] = 0xFF606060;
+			} else {
+				buf[y * width + x] = 0xFFE0E0E0;
+			}
+		}
+	}
+}
+
+/**
+ * uses cairo to draw a image
+ */
+void image(uint32_t *buf, int width, int height){
+
+}
+
+/**
+ * Handels the shared memory and calls the render hanfler.
+ */
+void render(struct window_state *state, int fd){
+	int stride = state->width * 4;
+	int size = stride * state->height;
+
+	// map the file into memory
+	uint32_t *data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	// call the render hangler
+	(*(state->render_handler))(data, state->width, state->height);
+	// unmap the file
+	munmap(data, size);
+}
 
 
 //buffer listener
 void buffer_release(void *data, struct wl_buffer *wl_buffer){
 	wl_buffer_destroy(wl_buffer);
-	report("buffer release");
+	//report("buffer release");
 }
 
 static const struct wl_buffer_listener buffer_listener = {
 	.release = buffer_release,
 };
 
-void configure_surface(struct window_state *state, int32_t width, int32_t height){
-	//
-	if (width <= 0 || height <= 0) {
+void configure_surface(struct window_state *state){
+	int32_t width, height;
+	if (state->width <= 0 || state->height <= 0) {
 		width = 200;
 		height = 200;
+	}else{
+		width = state->width;
+		height = state->height;
 	}
 
 	int stride = width * 4;
@@ -58,8 +104,7 @@ void configure_surface(struct window_state *state, int32_t width, int32_t height
 	int fd = memfd_create("buffer", 0);
 	ftruncate(fd, size);
 
-	// map the file into memory
-	//unsigned char *data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	if (state->render_handler) render(state, fd);
 	
 	// turn it into a shared memory pool (tell the compositor, that it should create a pool in fd)
 	struct wl_shm_pool *pool = wl_shm_create_pool(state->shm, fd, size);
@@ -78,6 +123,7 @@ void configure_surface(struct window_state *state, int32_t width, int32_t height
 	// tell the compositor to render (or just take for now) the buffer contents
 	wl_surface_commit(state->wlsurf);
 	xdg_surface_set_window_geometry(state->xdgsurf, 0, 0, width, height);
+	report("config surface func");
 }
 
 // registry global listener
@@ -103,8 +149,18 @@ const struct wl_registry_listener registry_listener = {
 void config_handler(void* data, struct xdg_surface *xdg_surf, uint32_t serial){
 	xdg_surface_ack_configure(xdg_surf, serial);
 	struct window_state *state = data;
-	configure_surface(state, state->width, state->height);
-	//wl_surface_commit(((struct window_state *)data)->wlsurf);
+	if (state->changed) configure_surface(state);
+	state->changed = 0;
+	if (state->tlstate == XDG_TOPLEVEL_STATE_MAXIMIZED) {
+		xdg_toplevel_set_maximized(state->toplevel);
+		state->current = state->tlstate;
+		state->tlstate = 0;
+	} else if (state->tlstate == XDG_TOPLEVEL_STATE_FULLSCREEN) {
+		xdg_toplevel_set_fullscreen(state->toplevel, NULL);
+		state->current = state->tlstate;
+		state->tlstate = 0;
+	}
+	wl_surface_commit(state->wlsurf);
 	report("config xdg surface");
 }
 
@@ -127,9 +183,24 @@ struct xdg_wm_base_listener ping_listener = {
 void toplevel_conf(void* data, struct xdg_toplevel *xgd_toplevel, int32_t width, int32_t height, struct wl_array *states){
 	//configure_surface((struct window_state *)data, width, height);
 	struct window_state* state = data;
-	state->width = width;
-	state->height = height;
-	report("toplevel conf");
+	if (width > 0 
+		&& height > 0 
+		&& (state->width != width 
+		|| state->height != height)) {
+		state->width = width;
+		state->height = height;
+		state->changed = 1;
+	}
+	enum xdg_toplevel_state *s;
+	wl_array_for_each(s, states) {
+		if (state->current != *s 
+			&& (*s == XDG_TOPLEVEL_STATE_MAXIMIZED 
+			|| *s == XDG_TOPLEVEL_STATE_FULLSCREEN)) {
+			state->tlstate = *s;
+			state->changed = 1;
+		}
+	}
+	//report("toplevel conf");
 }
 
 void toplevel_bounds(void* data, struct xdg_toplevel *xgd_toplevel, int32_t width, int32_t height){
@@ -141,7 +212,7 @@ void toplevel_bounds(void* data, struct xdg_toplevel *xgd_toplevel, int32_t widt
 	if (state->height > height) {
 		state->height = height;
 	}
-	report("toplevel bounds");
+	//report("toplevel bounds");
 }
 
 void toplevel_close(void* data, struct xdg_toplevel *xdg_toplevel) {
@@ -151,7 +222,7 @@ void toplevel_close(void* data, struct xdg_toplevel *xdg_toplevel) {
 }
 
 void toplevel_capabil(void* data, struct xdg_toplevel *xdg_toplevel, struct wl_array *capabilities){
-	report("capabilities");
+	//report("capabilities");
 }
 
 struct xdg_toplevel_listener event_listener = {
@@ -161,8 +232,14 @@ struct xdg_toplevel_listener event_listener = {
 	.wm_capabilities = toplevel_capabil,
 };
 
+void window_state_init(struct window_state *state) {
+	state->changed = 1;
+}
+
 int main(int argc, char** argv){
 	struct window_state state = {0};
+	window_state_init(&state);
+	state.render_handler = checker;
 	// init connection, get the display
 	state.disp = wl_display_connect(NULL);
 	// retrive the registry
@@ -182,38 +259,12 @@ int main(int argc, char** argv){
 	xdg_surface_add_listener(state.xdgsurf, &config_listener, &state);
 	state.toplevel = xdg_surface_get_toplevel(state.xdgsurf);
 	xdg_toplevel_add_listener(state.toplevel, &event_listener, &state);
+	xdg_toplevel_set_title(state.toplevel, "waylogo");
 
 	// xdg surface configure sequens
 	wl_surface_commit(state.wlsurf);
 	wl_display_roundtrip(state.disp);
 	
-
-
-	//subject to change (dynamic?)
-	//int width = 200;
-	//int height = 200;
-	//int stride = width*4;
-	//int size = stride * height; // bytes
-	
-	// open an anonymous file (that only we and the compositor will know about) and write some zero bytes to it
-	//int fd = memfd_create("buffer", 0);
-	//ftruncate(fd, size);
-
-	// map the file into memory
-	//unsigned char *data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-
-	// turn it into a shared memory pool (tell the compositor, that it should create a pool in fd)
-	//struct wl_shm_pool *pool = wl_shm_create_pool(shm, fd, size);
-
-	//allocate the buffer in that pool (tell the compositor to memory share and how to interpret the data)
-	//struct wl_buffer *buffer = wl_shm_pool_create_buffer(pool, 0, width, height, stride, WL_SHM_FORMAT_XRGB8888);
-
-	//attach the buffer to the surface
-	//wl_surface_attach(surface, buffer, 0, 0);
-
-	// tell the compositor to render (or just take for now) the buffer contents
-	//wl_surface_commit(surface);
-
 	while (1) {
 		wl_display_dispatch(state.disp);
 	}

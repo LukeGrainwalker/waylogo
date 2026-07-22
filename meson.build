@@ -31,5 +31,11 @@ xdg_shell_header = custom_target('xdg_shell_h',
   command: [wayland_scanner, 'client-header', '@INPUT@', '@OUTPUT@'],
 )
 
-cairodep = dependency('cairo')
-executable(meson.project_name(), ['main.c', xdg_shell_code, xdg_shell_header], dependencies:[wldep, wayland_protos, cairodep])
+plutosvg_dep = dependency('plutosvg', required: false)
+
+if not plutosvg_dep.found()
+  plutosvg_proj = subproject('plutosvg')
+  plutosvg_dep = plutosvg_proj.get_variable('plutosvg_dep')
+endif
+
+executable(meson.project_name(), ['main.c', xdg_shell_code, xdg_shell_header], dependencies:[wldep, wayland_protos, plutosvg_dep])

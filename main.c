@@ -7,6 +7,8 @@
 
 #include <wayland-client.h>
 #include "xdg-shell-protocol.h"
+#include <plutosvg.h>
+//#include <plutovg.h>
 
 /**
  * report a message to the console
@@ -54,10 +56,30 @@ void checker(uint32_t *buf, int width, int height){
 }
 
 /**
- * uses .. to draw an svg image
+ * uses plutosvg to draw an svg image
  */
 void image(uint32_t *buf, int width, int height){
 	report("image");
+	// load svg
+	plutosvg_document_t* svg = plutosvg_document_load_from_file("wayland.svg", -1, -1);
+	if (svg == NULL){
+		printf("Unable to load: wayland.svg\n");
+		return;
+	}
+	//prepair surface
+	int stride = width * 4;
+	plutovg_surface_t *dest = plutovg_surface_create_for_data(buf, width, height, stride);
+	//prepair canvas
+	plutovg_canvas_t *cv = plutovg_canvas_create(dest);
+
+	//render the svg
+	plutosvg_document_render(svg, NULL, cv, NULL, NULL, NULL);
+
+	//cleanup
+	plutosvg_document_destroy(svg);
+	plutovg_canvas_save(cv);
+	plutovg_canvas_destroy(cv);
+	plutovg_surface_destroy(dest);
 }
 
 /**

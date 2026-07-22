@@ -7,7 +7,6 @@
 
 #include <wayland-client.h>
 #include "xdg-shell-protocol.h"
-#include <cairo.h>
 
 /**
  * report a message to the console
@@ -55,10 +54,10 @@ void checker(uint32_t *buf, int width, int height){
 }
 
 /**
- * uses cairo to draw a image
+ * uses .. to draw an svg image
  */
 void image(uint32_t *buf, int width, int height){
-
+	report("image");
 }
 
 /**
@@ -239,7 +238,7 @@ void window_state_init(struct window_state *state) {
 int main(int argc, char** argv){
 	struct window_state state = {0};
 	window_state_init(&state);
-	state.render_handler = checker;
+	state.render_handler = image;
 	// init connection, get the display
 	state.disp = wl_display_connect(NULL);
 	// retrive the registry

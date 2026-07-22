@@ -16,7 +16,7 @@
  */
 void report(char* msg){
 	printf("%s\n", msg);
-	fflush(stdin);
+	fflush(stdout);
 }
 
 struct window_state {
@@ -72,7 +72,23 @@ void image(uint32_t *buf, int width, int height){
 	//prepair canvas
 	plutovg_canvas_t *cv = plutovg_canvas_create(dest);
 
+	// calculate transformation
+	float scale;
+	float tx = 0.0;
+	float ty = 0.0;
+	float svgh = plutosvg_document_get_height(svg);
+	float svgw = plutosvg_document_get_width(svg);
+	if (width > height){
+		scale = height / svgh;
+		tx = (width - (svgw*scale)) / 2.0;
+	} else {
+		scale = width / svgw;
+		ty = (height - (svgh*scale)) / 2.0;
+	}
+
 	//render the svg
+	plutovg_canvas_translate(cv, tx, ty);
+	plutovg_canvas_scale(cv, scale, scale);
 	plutosvg_document_render(svg, NULL, cv, NULL, NULL, NULL);
 
 	//cleanup

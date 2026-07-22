@@ -3,4 +3,4 @@ build*
 *.png
 *.jpg
 /subprojects/*
-/subprojects/plutosvg.wrap
+!/subprojects/plutosvg.wrap

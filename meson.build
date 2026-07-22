@@ -38,4 +38,6 @@ if not plutosvg_dep.found()
   plutosvg_dep = plutosvg_proj.get_variable('plutosvg_dep')
 endif
 
+wayland_logo = subproject('wayland-logo')
+
 executable(meson.project_name(), ['main.c', xdg_shell_code, xdg_shell_header], dependencies:[wldep, wayland_protos, plutosvg_dep])

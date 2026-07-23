@@ -1,0 +1,14 @@
+name: ubuntu
+on: [push]
+jobs:
+  build:
+    name: build with meson
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup and build
+        run: |
+          meson setup build
+          ninja -C build
+        
+      
+      

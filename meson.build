@@ -1,4 +1,4 @@
-project('waylogo', 'c', version:'0.01')
+project('waylogo', 'c', version:'0.01', meson_version: '>=1.6.0')
 
 wayland_scanner_dep = dependency('wayland-scanner',
   fallback: 'wayland',
@@ -42,7 +42,7 @@ conf_data = configuration_data()
 
 conf_data.set('name', meson.project_name())
 conf_data.set('build_dir', meson.project_build_root())
-conf_data.set('data_dir', get_option('datadir') / meson.project_name())
+conf_data.set('data_dir', get_option('prefix') / get_option('datadir') / meson.project_name())
 
 curl = find_program('curl', required:false)
 if curl.found()

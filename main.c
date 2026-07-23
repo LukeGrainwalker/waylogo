@@ -38,7 +38,7 @@ struct window_state {
 	enum xdg_toplevel_state current;
 	int changed; //is set when there was a change made to the dimensions since the last xdg_surface config
 	/*Render*/
-	void (*render_handler)(uint32_t* buf, int width, int height);
+	plutosvg_document_t *svg;
 };
 
 /**
@@ -59,14 +59,8 @@ void checker(uint32_t *buf, int width, int height){
 /**
  * uses plutosvg to draw an svg image
  */
-void image(uint32_t *buf, int width, int height){
+void image(uint32_t *buf, plutosvg_document_t *svg, int width, int height){
 	report("image");
-	// load svg
-	plutosvg_document_t* svg = plutosvg_document_load_from_file("wayland.svg", -1, -1);
-	if (svg == NULL){
-		printf("Unable to load: wayland.svg\n");
-		return;
-	}
 	//prepair surface
 	int stride = width * 4;
 	plutovg_surface_t *dest = plutovg_surface_create_for_data(buf, width, height, stride);
@@ -93,14 +87,13 @@ void image(uint32_t *buf, int width, int height){
 	plutosvg_document_render(svg, NULL, cv, NULL, NULL, NULL);
 
 	//cleanup
-	plutosvg_document_destroy(svg);
 	plutovg_canvas_save(cv);
 	plutovg_canvas_destroy(cv);
 	plutovg_surface_destroy(dest);
 }
 
 /**
- * Handels the shared memory and calls the render hanfler.
+ * Handels the shared memory and calls the render handler.
  */
 void render(struct window_state *state, int fd){
 	int stride = state->width * 4;
@@ -109,7 +102,11 @@ void render(struct window_state *state, int fd){
 	// map the file into memory
 	uint32_t *data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	// call the render hangler
-	(*(state->render_handler))(data, state->width, state->height);
+	if (state->svg) {
+		image(data, state->svg, state->width, state->height);
+	} else {
+		checker(data, state->width, state->height);
+	}
 	// unmap the file
 	munmap(data, size);
 }
@@ -142,7 +139,7 @@ void configure_surface(struct window_state *state){
 	int fd = memfd_create("buffer", 0);
 	ftruncate(fd, size);
 
-	if (state->render_handler) render(state, fd);
+	render(state, fd);
 	
 	// turn it into a shared memory pool (tell the compositor, that it should create a pool in fd)
 	struct wl_shm_pool *pool = wl_shm_create_pool(state->shm, fd, size);
@@ -256,6 +253,8 @@ void toplevel_bounds(void* data, struct xdg_toplevel *xgd_toplevel, int32_t widt
 void toplevel_close(void* data, struct xdg_toplevel *xdg_toplevel) {
 	// TODO: make a better exit!!!
 	report("close");
+	struct window_state* state = data;
+	plutosvg_document_destroy(state->svg);
 	exit(0);
 }
 
@@ -274,10 +273,42 @@ void window_state_init(struct window_state *state) {
 	state->changed = 1;
 }
 
+plutosvg_document_t* exists(char* path, char* name){
+	char* file_path = malloc(strlen(path) + strlen(name));
+	strcpy(file_path, path);
+	strcat(file_path, name);
+	if (access(file_path, R_OK) == 0){
+		// load svg
+		plutosvg_document_t* svg = plutosvg_document_load_from_file(file_path, -1, -1);
+		if (svg == NULL){
+			printf("Unable to load: %s\n", file_path);
+		}
+		return svg;
+	}else{
+		printf("file %s does not exist or is not readable\n", file_path);
+		free(file_path);
+		return NULL;
+	}
+}
+
+plutosvg_document_t *get_logo(){
+	plutosvg_document_t *path = NULL;
+	char *logo = "/wayland.svg";
+
+	path = exists(DATA_PATH, logo);
+	if (path == NULL) {
+		path = exists(BUILD_PATH, logo);
+		if (path == NULL) {
+			path = exists(".", logo);
+		}
+	}
+	return path;
+}
+
 int main(int argc, char** argv){
 	struct window_state state = {0};
 	window_state_init(&state);
-	state.render_handler = image;
+	state.svg = get_logo();
 	// init connection, get the display
 	state.disp = wl_display_connect(NULL);
 	// retrive the registry

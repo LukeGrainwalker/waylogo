@@ -5,4 +5,5 @@ build*
 /subprojects/*
 !/subprojects/plutosvg.wrap
 !/subprojects/wayland.wrap
+!/subprojects/wayland-protocols.wrap
 config.h

@@ -4,4 +4,5 @@ build*
 *.jpg
 /subprojects/*
 !/subprojects/plutosvg.wrap
+!/subprojects/wayland.wrap
 config.h

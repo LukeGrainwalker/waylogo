@@ -38,6 +38,32 @@ if not plutosvg_dep.found()
   plutosvg_dep = plutosvg_proj.get_variable('plutosvg_dep')
 endif
 
-wayland_logo = subproject('wayland-logo')
+conf_data = configuration_data()
 
-executable(meson.project_name(), ['main.c', xdg_shell_code, xdg_shell_header], dependencies:[wldep, wayland_protos, plutosvg_dep])
+conf_data.set('name', meson.project_name())
+conf_data.set('build_dir', meson.project_build_root())
+conf_data.set('data_dir', get_option('datadir') / meson.project_name())
+
+curl = find_program('curl', required:false)
+if curl.found()
+  wayland_logo = run_command(curl, 
+    'https://gitlab.freedesktop.org/wayland/weston/-/raw/main/data/wayland.svg?ref_type=heads&inline=false', 
+    '-o', meson.project_build_root() / 'wayland.svg', 
+    check: false
+  )
+  if wayland_logo.returncode() == 0
+    install_data(meson.project_build_root() / 'wayland.svg', install_dir: get_option('datadir') / meson.project_name())
+  endif
+endif
+
+configure_file(
+  input: 'config.h.in',
+  output: 'config.h',
+  configuration: conf_data
+)
+
+executable(meson.project_name(), 
+  ['main.c', xdg_shell_code, xdg_shell_header], 
+  dependencies:[wldep, wayland_protos, plutosvg_dep],
+  install: true,
+)

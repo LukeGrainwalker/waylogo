@@ -8,6 +8,7 @@
 #include <wayland-client.h>
 #include "xdg-shell-protocol.h"
 #include <plutosvg.h>
+#include <config.h>
 //#include <plutovg.h>
 
 /**
@@ -296,7 +297,7 @@ int main(int argc, char** argv){
 	xdg_surface_add_listener(state.xdgsurf, &config_listener, &state);
 	state.toplevel = xdg_surface_get_toplevel(state.xdgsurf);
 	xdg_toplevel_add_listener(state.toplevel, &event_listener, &state);
-	xdg_toplevel_set_title(state.toplevel, "waylogo");
+	xdg_toplevel_set_title(state.toplevel, NAME_STR);
 
 	// xdg surface configure sequens
 	wl_surface_commit(state.wlsurf);

@@ -4,3 +4,4 @@ build*
 *.jpg
 /subprojects/*
 !/subprojects/plutosvg.wrap
+config.h

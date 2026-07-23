@@ -5,10 +5,10 @@ jobs:
     name: build with meson
     runs-on: ubuntu-latest
     steps:
-      - name: Setup and build
-        run: |
-          meson setup build
-          ninja -C build
+      - name: Setup
+        uses: BSFishy/meson-build@v1.0.3
+        with:
+          action: build
         
       
       

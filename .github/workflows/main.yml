@@ -12,6 +12,11 @@ jobs:
         with:
           action: build
           meson-version: 1.9.1
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          path: build/waylogo
+          archive: false
         
       
       

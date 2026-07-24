@@ -1,15 +1,14 @@
 #include <stdlib.h>
-#include <plutosvg.h>
-#include <wayland-client.h>
-#include "wayland.h"
-#include "draw.h"
-#include "util.h"
-
-#include <config.h>
-
 #include <unistd.h>
 #include <sys/mman.h>
 #include <string.h>
+#include <wayland-client.h>
+
+#include "draw.h"
+#include "wayland.h"
+#include "util.h"
+
+#include <config.h>
 
 /**
  * Handels the shared memory and calls the render handler.
@@ -198,7 +197,10 @@ struct xdg_toplevel_listener event_listener = {
 void window_state_init(struct window_state *state) {
 	state->changed = 1;
 }
-
+/**
+ * lauch the waylogo window
+ * this should never return...
+ */
 void way_launch(struct window_state *state){
 	// init connection, get the display
 	state->disp = wl_display_connect(NULL);

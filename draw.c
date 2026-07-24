@@ -1,5 +1,5 @@
-#include <plutosvg.h>
 #include "draw.h"
+#include "util.h"
 
 /**
  * Draws a checkerboard pattern, for testing puroses.
@@ -23,7 +23,7 @@ void image(uint32_t *buf, plutosvg_document_t *svg, int width, int height){
 	report("image");
 	//prepair surface
 	int stride = width * 4;
-	plutovg_surface_t *dest = plutovg_surface_create_for_data(buf, width, height, stride);
+	plutovg_surface_t *dest = plutovg_surface_create_for_data((unsigned char *)buf, width, height, stride);
 	//prepair canvas
 	plutovg_canvas_t *cv = plutovg_canvas_create(dest);
 

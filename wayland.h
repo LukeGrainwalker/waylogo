@@ -1,6 +1,6 @@
 #include <stdint.h>
-
 #include "xdg-shell-protocol.h"
+
 
 struct window_state {
 	/*Globals*/

@@ -8,6 +8,9 @@
 
 #include "wayland.h"
 
+/**
+ * load a svg name in path if it exists.
+ */
 plutosvg_document_t* get_svg(char* path, char* name){
 	char* file_path = malloc(strlen(path) + strlen(name));
 	strcpy(file_path, path);
@@ -26,6 +29,12 @@ plutosvg_document_t* get_svg(char* path, char* name){
 	}
 }
 
+/**
+ * search all possible paths for the logo, which are:
+ *  - the build path (BUILD_PATH)
+ *  - the installed data path (DATA_PATH)
+ *  - the current working directory
+ */
 plutosvg_document_t *get_logo(){
 	plutosvg_document_t *path = NULL;
 	char *logo = "/wayland.svg";

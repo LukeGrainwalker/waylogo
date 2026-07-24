@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <syscall.h>
 #include <string.h>
 #include <wayland-client.h>
 
@@ -54,7 +55,9 @@ void configure_surface(struct window_state *state){
 	int size = stride*height;
 
 	// open an anonymous file (that only we and the compositor will know about) and write some zero bytes to it
-	int fd = memfd_create("buffer", 0);
+	//int fd = memfd_create("buffer", 0);
+	// function memfd_create is not in any header file... (get's rid of warnings)
+	int fd = syscall(SYS_memfd_create, "buffer", 0);
 	ftruncate(fd, size);
 
 	render(state, fd);

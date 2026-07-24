@@ -4,6 +4,7 @@ build*
 *.jpg
 /subprojects/*
 !/subprojects/plutosvg.wrap
+!/subprojects/plutovg.wrap
 !/subprojects/wayland.wrap
 !/subprojects/wayland-protocols.wrap
 config.h

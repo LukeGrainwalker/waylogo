@@ -31,10 +31,17 @@ xdg_shell_header = custom_target('xdg_shell_h',
   command: [wayland_scanner, 'client-header', '@INPUT@', '@OUTPUT@'],
 )
 
+plutovg_dep = dependency('plutovg', required: false)
+
+if not plutovg_dep.found()
+  plutovg_proj = subproject('plutovg', default_options: ['default_library=static'])
+  plutovg_dep = plutovg_proj.get_variable('plutovg_dep')
+endif
+
 plutosvg_dep = dependency('plutosvg', required: false)
 
 if not plutosvg_dep.found()
-  plutosvg_proj = subproject('plutosvg')
+  plutosvg_proj = subproject('plutosvg', default_options: ['default_library=static'])
   plutosvg_dep = plutosvg_proj.get_variable('plutosvg_dep')
 endif
 

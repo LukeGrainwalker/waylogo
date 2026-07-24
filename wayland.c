@@ -6,8 +6,8 @@
 #include <wayland-client.h>
 
 #include "draw.h"
-#include "wayland.h"
 #include "util.h"
+#include "wayland.h"
 
 #include <config.h>
 
@@ -181,6 +181,7 @@ void toplevel_close(void* data, struct xdg_toplevel *xdg_toplevel) {
 	report("close");
 	struct window_state* state = data;
 	plutosvg_document_destroy(state->svg);
+	free(state->conf);
 	exit(0);
 }
 

@@ -6,6 +6,7 @@
 #include <plutosvg.h>
 #include <config.h>
 
+#include "util.h"
 #include "wayland.h"
 
 /**
@@ -53,6 +54,7 @@ int main(int argc, char** argv){
 	struct window_state state = {0};
 	window_state_init(&state);
 	state.svg = get_logo();
+	state.conf = waylogo_configure(argc, argv);
 	//this should never return..
 	way_launch(&state);
 	return 0;

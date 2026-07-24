@@ -63,7 +63,7 @@ configure_file(
 )
 
 executable(meson.project_name(), 
-  ['main.c', xdg_shell_code, xdg_shell_header], 
+  ['main.c', 'wayland.c', 'draw.c', 'util.c', xdg_shell_code, xdg_shell_header], 
   dependencies:[wldep, wayland_protos, plutosvg_dep],
   install: true,
 )

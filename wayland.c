@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <plutosvg.h>
 #include <wayland-client.h>
-#include "xdg-shell-protocol.h"
 #include "wayland.h"
 #include "draw.h"
 #include "util.h"
@@ -10,6 +9,7 @@
 
 #include <unistd.h>
 #include <sys/mman.h>
+#include <string.h>
 
 /**
  * Handels the shared memory and calls the render handler.
@@ -215,10 +215,10 @@ void way_launch(struct window_state *state){
 
 	//create a surface and assign the toplevel role
 	state->wlsurf = wl_compositor_create_surface(state->comp);
-	state.xdgsurf = xdg_wm_base_get_xdg_surface(state->shell, state->wlsurf);
+	state->xdgsurf = xdg_wm_base_get_xdg_surface(state->shell, state->wlsurf);
 	xdg_surface_add_listener(state->xdgsurf, &config_listener, state);
 	//get and asign the toplevel role to the window
-	state.toplevel = xdg_surface_get_toplevel(state->xdgsurf);
+	state->toplevel = xdg_surface_get_toplevel(state->xdgsurf);
 	xdg_toplevel_add_listener(state->toplevel, &event_listener, state);
 	xdg_toplevel_set_title(state->toplevel, NAME_STR);
 

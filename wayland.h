@@ -1,3 +1,6 @@
+#include <stdint.h>
+
+#include "xdg-shell-protocol.h"
 
 struct window_state {
 	/*Globals*/
@@ -21,7 +24,7 @@ struct window_state {
 };
 
 
-void render(struct window_state *state);
+void render(struct window_state *state, int fd);
 
 
 void buffer_release(void *data, struct wl_buffer *wl_buffer);

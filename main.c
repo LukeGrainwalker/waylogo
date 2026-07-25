@@ -10,7 +10,7 @@
 #include "wayland.h"
 
 /**
- * load a svg name in path if it exists.
+ * load a svg called name in path if it exists.
  */
 plutosvg_document_t* get_svg(char* path, char* name){
 	char* file_path = malloc(strlen(path) + strlen(name));
@@ -20,11 +20,11 @@ plutosvg_document_t* get_svg(char* path, char* name){
 		// load svg
 		plutosvg_document_t* svg = plutosvg_document_load_from_file(file_path, -1, -1);
 		if (svg == NULL){
-			printf("Unable to load: %s\n", file_path);
+			report_code(WLERR_LOAD, file_path);
 		}
 		return svg;
 	}else{
-		printf("file %s does not exist or is not readable\n", file_path);
+		report_code(WLERR_EXIST, file_path);
 		free(file_path);
 		return NULL;
 	}
@@ -53,8 +53,8 @@ plutosvg_document_t *get_logo(){
 int main(int argc, char** argv){
 	struct window_state state = {0};
 	window_state_init(&state);
-	state.svg = get_logo();
 	state.conf = waylogo_configure(argc, argv);
+	state.svg = get_logo();
 	//this should never return..
 	way_launch(&state);
 	return 0;

@@ -2,8 +2,6 @@
 #include "xdg-shell-protocol.h"
 
 struct pointer_state {
-	int state;
-	uint32_t enter_serial;
 	uint32_t move_serial;
 	struct wl_cursor_image *image;
 };

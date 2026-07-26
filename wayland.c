@@ -206,18 +206,22 @@ struct xdg_toplevel_listener event_listener = {
 /**
  * pointer listener (listen for changes of the pointer)
  * this is another accumulation event sequens, all values recived in
- * these events should be accumulated until the next frame event is
- * recieved...
+ * these events should be accumulated(but not the set cursor request 
+ * that should be applied directly) until the next frame event is recieved...
  */
 
 void pointer_enter_handler(void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface, wl_fixed_t surface_x, wl_fixed_t surface_y){
 	// set pointer ...
-	struct pointer_state *pstate = ((struct window_state *)data)->ptr_state;
-	pstate->state |= POINTER_STATE_ENTER;
+	struct window_state *state = (struct window_state *)data;
+	struct wl_cursor_image *pimage = (state->ptr_state)->image;
+	// set the default pointer surface
+	wl_pointer_set_cursor(pointer, serial, state->pointer_surf, pimage->hotspot_x, pimage->hotspot_y);
+	report("pointer enter");
 }
 
 void pointer_leave_handler(void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface) {
 	// do nothing
+	report("pointer leave");
 }
 
 void pointer_motion_handler(void *data, struct wl_pointer *pointer, uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {}
@@ -226,8 +230,9 @@ void pointer_button_handler(void *data, struct wl_pointer *pointer, uint32_t ser
 	//save left button press event for the frame ...
 	struct pointer_state *pstate = ((struct window_state *)data)->ptr_state;
 	if (button == BTN_LEFT && (enum wl_pointer_button_state)state == WL_POINTER_BUTTON_STATE_PRESSED){
-		pstate->state |= POINTER_STATE_MOVE;
+		pstate->move_serial = serial;
 	}
+	report("pointer button");
 }
 
 void pointer_frame_handler(void *data, struct wl_pointer *pointer){
@@ -235,15 +240,11 @@ void pointer_frame_handler(void *data, struct wl_pointer *pointer){
 	// issue move request in the toplevel protocol...
 	struct window_state *state = data;
 	struct pointer_state *pstate = state->ptr_state;
-	struct wl_cursor_image *pimage = pstate->image;
-	if (pstate->state & POINTER_STATE_MOVE){
+	if (pstate->move_serial){
 		// issue move request
+		pstate->move_serial = 0;
 	}
-	if (pstate->state & POINTER_STATE_ENTER){
-		// set the default pointer surface
-		wl_pointer_set_cursor(pointer, pstate->enter_serial, state->pointer_surf, pimage->hotspot_x, pimage->hotspot_y);
-	}
-	pstate->state = 0;
+	report("pointer frame");
 }
 
 struct wl_pointer_listener pointer_listener = {
@@ -266,6 +267,7 @@ void  seat_capabilities(void *data, struct wl_seat *wl_seat, uint32_t capabiliti
 	} else if (state->pointer) {
 		wl_pointer_release(state->pointer);
 	}
+	report("seat capabilities");
 }
 
 void seat_name(void *data, struct wl_seat *wl_seat, const char *name){}
@@ -307,9 +309,12 @@ void way_launch(struct window_state *state){
 	wl_seat_add_listener(state->seat, &seat_listener, state);
 
 	// prepair the cursor surface this will stay in memory until we close
+	struct pointer_state *pstate = state->ptr_state;
 	struct wl_cursor_theme *theme = wl_cursor_theme_load(NULL, 24, state->shm);
 	struct wl_cursor *cursor = wl_cursor_theme_get_cursor(theme, "left_ptr");
-	struct wl_buffer *cursor_buffer = wl_cursor_image_get_buffer(cursor->images[0]);
+	
+	pstate->image = cursor->images[0];
+	struct wl_buffer *cursor_buffer = wl_cursor_image_get_buffer(pstate->image);
 	wl_buffer_add_listener(cursor_buffer, &buffer_listener, NULL);
 	
 	// create a new surface for the cursor image buffer

@@ -1,6 +1,12 @@
 #include <stdint.h>
 #include "xdg-shell-protocol.h"
 
+struct pointer_state {
+	int state;
+	uint32_t enter_serial;
+	uint32_t move_serial;
+	struct wl_cursor_image *image;
+};
 
 struct window_state {
 	/*Globals*/
@@ -8,9 +14,12 @@ struct window_state {
 	struct wl_registry *reg;
 	struct wl_compositor *comp;
 	struct wl_shm *shm;
+	struct wl_seat *seat;
 	struct xdg_wm_base *shell;
 	/*Objects*/
 	struct wl_surface *wlsurf;
+	struct wl_pointer *pointer;
+	struct wl_surface *pointer_surf;
 	struct xdg_surface *xdgsurf;
 	struct xdg_toplevel *toplevel;
 	/*Settings*/
@@ -19,10 +28,14 @@ struct window_state {
 	enum xdg_toplevel_state tlstate;
 	enum xdg_toplevel_state current;
 	int changed; //is set when there was a change made to the dimensions since the last xdg_surface config
+	struct pointer_state *ptr_state;
 	/*Misc*/
 	plutosvg_document_t *svg;
 	struct waylogo_config *conf;
 };
+
+#define POINTER_STATE_ENTER 1
+#define POINTER_STATE_MOVE 2
 
 
 void render(struct window_state *state, int fd);

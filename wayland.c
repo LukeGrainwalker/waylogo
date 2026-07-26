@@ -4,6 +4,8 @@
 #include <syscall.h>
 #include <string.h>
 #include <wayland-client.h>
+#include <wayland-cursor.h>
+#include <linux/input-event-codes.h>
 
 #include "draw.h"
 #include "util.h"
@@ -95,6 +97,8 @@ void registry_global_handler(void *data , struct wl_registry *registry, uint32_t
 		state->shm = wl_registry_bind(registry, name, &wl_shm_interface, 1);
 	} else if (strcmp(interface, "xdg_wm_base") == 0){
 		state->shell = wl_registry_bind(registry, name, &xdg_wm_base_interface, 1);
+	} else if (strcmp(interface, "wl_seat") == 0){
+		state->seat = wl_registry_bind(registry, name, &wl_seat_interface, 1);
 	}
 }
 
@@ -182,6 +186,7 @@ void toplevel_close(void* data, struct xdg_toplevel *xdg_toplevel) {
 	struct window_state* state = data;
 	plutosvg_document_destroy(state->svg);
 	free(state->conf);
+	free(state->ptr_state);
 	exit(0);
 }
 
@@ -194,12 +199,91 @@ struct xdg_toplevel_listener event_listener = {
 	.close = toplevel_close,
 	.wm_capabilities = toplevel_capabil,
 };
+/**
+ * pointer input section
+ * The following section takes care of pointer and seat menagement
+ */
+/**
+ * pointer listener (listen for changes of the pointer)
+ * this is another accumulation event sequens, all values recived in
+ * these events should be accumulated until the next frame event is
+ * recieved...
+ */
+
+void pointer_enter_handler(void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface, wl_fixed_t surface_x, wl_fixed_t surface_y){
+	// set pointer ...
+	struct pointer_state *pstate = ((struct window_state *)data)->ptr_state;
+	pstate->state |= POINTER_STATE_ENTER;
+}
+
+void pointer_leave_handler(void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface) {
+	// do nothing
+}
+
+void pointer_motion_handler(void *data, struct wl_pointer *pointer, uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {}
+
+void pointer_button_handler(void *data, struct wl_pointer *pointer, uint32_t serial, uint32_t time, uint32_t button, uint32_t state){
+	//save left button press event for the frame ...
+	struct pointer_state *pstate = ((struct window_state *)data)->ptr_state;
+	if (button == BTN_LEFT && (enum wl_pointer_button_state)state == WL_POINTER_BUTTON_STATE_PRESSED){
+		pstate->state |= POINTER_STATE_MOVE;
+	}
+}
+
+void pointer_frame_handler(void *data, struct wl_pointer *pointer){
+	// apply accumulated changes ... 
+	// issue move request in the toplevel protocol...
+	struct window_state *state = data;
+	struct pointer_state *pstate = state->ptr_state;
+	struct wl_cursor_image *pimage = pstate->image;
+	if (pstate->state & POINTER_STATE_MOVE){
+		// issue move request
+	}
+	if (pstate->state & POINTER_STATE_ENTER){
+		// set the default pointer surface
+		wl_pointer_set_cursor(pointer, pstate->enter_serial, state->pointer_surf, pimage->hotspot_x, pimage->hotspot_y);
+	}
+	pstate->state = 0;
+}
+
+struct wl_pointer_listener pointer_listener = {
+	.enter = pointer_enter_handler,
+	.leave = pointer_leave_handler,
+	.motion = pointer_motion_handler,
+	.button = pointer_button_handler,
+	.frame = pointer_frame_handler
+};
+
+/**
+ * steat listener ( listen for seat capabilities...)
+ */
+void  seat_capabilities(void *data, struct wl_seat *wl_seat, uint32_t capabilities){
+	struct window_state *state = data;
+	if (1 & capabilities){
+		//get the pointer and add listeners:
+		state->pointer = wl_seat_get_pointer(wl_seat);
+		wl_pointer_add_listener(state->pointer, &pointer_listener, state);
+	} else if (state->pointer) {
+		wl_pointer_release(state->pointer);
+	}
+}
+
+void seat_name(void *data, struct wl_seat *wl_seat, const char *name){}
+
+struct wl_seat_listener seat_listener = {
+	.capabilities = seat_capabilities,
+	.name = seat_name,
+};
+
+
 
 /**
  * initialize the window state structure
  */
 void window_state_init(struct window_state *state) {
 	state->changed = 1;
+	state->ptr_state = malloc(sizeof(struct pointer_state));
+	memset(state->ptr_state, 0, sizeof(struct pointer_state));
 }
 /**
  * lauch the waylogo window
@@ -213,11 +297,25 @@ void way_launch(struct window_state *state){
 	// add the registry listener
 	wl_registry_add_listener(state->reg, &registry_listener, state);
 
-	// wait for the "initial" set of globals appear ( wait for the events ..)
+	// wait for the "initial" set of globals to appear ( wait for the events ..)
 	wl_display_roundtrip(state->disp);
 
 	// add the ping listener
 	xdg_wm_base_add_listener(state->shell, &ping_listener, NULL);
+
+	// add the seat listener (listen for the capabilities (does a pointer exist?))
+	wl_seat_add_listener(state->seat, &seat_listener, state);
+
+	// prepair the cursor surface this will stay in memory until we close
+	struct wl_cursor_theme *theme = wl_cursor_theme_load(NULL, 24, state->shm);
+	struct wl_cursor *cursor = wl_cursor_theme_get_cursor(theme, "left_ptr");
+	struct wl_buffer *cursor_buffer = wl_cursor_image_get_buffer(cursor->images[0]);
+	wl_buffer_add_listener(cursor_buffer, &buffer_listener, NULL);
+	
+	// create a new surface for the cursor image buffer
+	state->pointer_surf = wl_compositor_create_surface(state->comp);
+	wl_surface_attach(state->pointer_surf, cursor_buffer, 0, 0);
+	wl_surface_commit(state->pointer_surf);
 
 	//create a surface and assign the toplevel role
 	state->wlsurf = wl_compositor_create_surface(state->comp);

@@ -18,6 +18,8 @@ wayland_protos = dependency('wayland-protocols',
 )
 wl_proto_dir = wayland_protos.get_variable('pkgdatadir')
 
+wl_cursor_dep = dependency('wayland-cursor')
+
 xdg_shell_path = wl_proto_dir / 'stable/xdg-shell/xdg-shell.xml'
 xdg_shell_code = custom_target('xdg_shell_c',
   input: xdg_shell_path,
@@ -71,6 +73,6 @@ configure_file(
 
 executable(meson.project_name(), 
   ['main.c', 'wayland.c', 'draw.c', 'util.c', xdg_shell_code, xdg_shell_header], 
-  dependencies:[wldep, wayland_protos, plutosvg_dep],
+  dependencies:[wldep, wayland_protos, wl_cursor_dep, plutosvg_dep],
   install: true,
 )

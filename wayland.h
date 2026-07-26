@@ -2,7 +2,6 @@
 #include "xdg-shell-protocol.h"
 
 struct pointer_state {
-	uint32_t move_serial;
 	struct wl_cursor_image *image;
 };
 
@@ -32,10 +31,6 @@ struct window_state {
 	struct waylogo_config *conf;
 };
 
-#define POINTER_STATE_ENTER 1
-#define POINTER_STATE_MOVE 2
-
-
 void render(struct window_state *state, int fd);
 
 
@@ -55,6 +50,21 @@ void toplevel_conf(void* data, struct xdg_toplevel *xgd_toplevel, int32_t width,
 void toplevel_bounds(void* data, struct xdg_toplevel *xgd_toplevel, int32_t width, int32_t height);
 void toplevel_close(void* data, struct xdg_toplevel *xdg_toplevel);
 void toplevel_capabil(void* data, struct xdg_toplevel *xdg_toplevel, struct wl_array *capabilities);
+
+void pointer_enter_handler(void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface, wl_fixed_t surface_x, wl_fixed_t surface_y);
+
+void pointer_leave_handler(void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface);
+
+void pointer_motion_handler(void *data, struct wl_pointer *pointer, uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y);
+
+
+void pointer_button_handler(void *data, struct wl_pointer *pointer, uint32_t serial, uint32_t time, uint32_t button, uint32_t state);
+
+void pointer_frame_handler(void *data, struct wl_pointer *pointer);
+
+void  seat_capabilities(void *data, struct wl_seat *wl_seat, uint32_t capabilities);
+
+void seat_name(void *data, struct wl_seat *wl_seat, const char *name);
 
 void window_state_init(struct window_state *state);
 

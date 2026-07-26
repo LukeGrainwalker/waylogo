@@ -206,8 +206,9 @@ struct xdg_toplevel_listener event_listener = {
 /**
  * pointer listener (listen for changes of the pointer)
  * this is another accumulation event sequens, all values recived in
- * these events should be accumulated(but not the set cursor request 
- * that should be applied directly) until the next frame event is recieved...
+ * these events should be accumulated(in theory, in reality many 
+ * compositors fail to comply to that due to input handling issues ...) 
+ * until the next frame event is recieved...
  */
 
 void pointer_enter_handler(void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface, wl_fixed_t surface_x, wl_fixed_t surface_y){
@@ -227,23 +228,21 @@ void pointer_leave_handler(void *data, struct wl_pointer *pointer, uint32_t seri
 void pointer_motion_handler(void *data, struct wl_pointer *pointer, uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {}
 
 void pointer_button_handler(void *data, struct wl_pointer *pointer, uint32_t serial, uint32_t time, uint32_t button, uint32_t state){
-	//save left button press event for the frame ...
-	struct pointer_state *pstate = ((struct window_state *)data)->ptr_state;
+	//move the window when a left button press event is revieved ...
+	struct window_state *wstate = data;
 	if (button == BTN_LEFT && (enum wl_pointer_button_state)state == WL_POINTER_BUTTON_STATE_PRESSED){
-		pstate->move_serial = serial;
+		xdg_toplevel_move(wstate->toplevel, wstate->seat, serial);
+		report("pointer button (left button press)");
 	}
-	report("pointer button");
 }
 
 void pointer_frame_handler(void *data, struct wl_pointer *pointer){
 	// apply accumulated changes ... 
 	// issue move request in the toplevel protocol...
-	struct window_state *state = data;
-	struct pointer_state *pstate = state->ptr_state;
-	if (pstate->move_serial){
-		// issue move request
-		pstate->move_serial = 0;
-	}
+	// do nothing ... (apparently due to input handling problems
+	// compositors fail to send a frame event, so we have to apply
+	// changes in the handler functions...
+	// this will probably not be seen, ever...
 	report("pointer frame");
 }
 
@@ -308,7 +307,7 @@ void way_launch(struct window_state *state){
 	// add the seat listener (listen for the capabilities (does a pointer exist?))
 	wl_seat_add_listener(state->seat, &seat_listener, state);
 
-	// prepair the cursor surface this will stay in memory until we close
+	// prepair the cursor surface this will stay in memory until exit
 	struct pointer_state *pstate = state->ptr_state;
 	struct wl_cursor_theme *theme = wl_cursor_theme_load(NULL, 24, state->shm);
 	struct wl_cursor *cursor = wl_cursor_theme_get_cursor(theme, "left_ptr");

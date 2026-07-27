@@ -4,23 +4,36 @@
 #include <getopt.h>
 #include <string.h>
 #include <syslog.h>
+#include <stdarg.h>
 #include <config.h>
 #include "util.h"
 
-int dolog = 1;
+int quiet = 0;
 /**
  * report a message to the console
  * TODO use syslog for loging
  */
 void report(char* msg){
-	report_code(WLERR_GENERIC, msg);
+	report_prio(LOG_NOTICE, "%s" msg);
 }
 
 void wreport(char* msg){
-	report_code(WLERR_WDEBUG, msg);
+	report(LOG_DEBUG, "wayland signal: %s", msg);
 }
 
-void report_code(enum waylogo_error err, char* msg){
+void report_prio(int priority, char* fmt, ...){
+	va_list va;
+	va_list va2;
+
+	va_start(va, fmt);
+	if (!quiet){
+		va_copy(va2, va);
+		vfprintf(stderr, fmt, va2);
+		va_end(va2);
+	}
+	vsyslog(priority, fmt, va);
+	va_end(va);
+	/**
 	switch (err){
 		case WLERR_EXIST:
 			syslog(LOG_NOTICE, "file %s does not exist or is not readable", msg);
@@ -34,13 +47,11 @@ void report_code(enum waylogo_error err, char* msg){
 		case WLERR_GENERIC: default:
 			syslog(LOG_INFO, "%s\n", msg);
 	}
+	*/
 }
 
 void report_start() {
 	int opt = LOG_ODELAY;
-	if (dolog) {
-		opt |= LOG_CONS;
-	}
 	openlog(NAME_STR, opt, LOG_USER);
 }
 
@@ -84,7 +95,7 @@ struct waylogo_config *waylogo_configure(int argc, char** argv) {
 		//printf("%i, %c\n", opt, (char)opt);
 		if (opt < 0 || opt == '?') break;
 		conf->flags |= opt;
-		if (opt == CONFIG_QUIET) dolog = 0;
+		if (opt == CONFIG_QUIET) quiet = 1;
 		if (opt == CONFIG_HELP) phelp(argc, argv);
 	} while (opt >= 0);
 	if (optind < argc || opt == '?') {

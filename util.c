@@ -3,6 +3,8 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <string.h>
+#include <syslog.h>
+#include <config.h>
 #include "util.h"
 
 int dolog = 1;
@@ -14,22 +16,39 @@ void report(char* msg){
 	report_code(WLERR_GENERIC, msg);
 }
 
+void wreport(char* msg){
+	report_code(WLERR_WDEBUG, msg);
+}
+
 void report_code(enum waylogo_error err, char* msg){
-	if (dolog == 1) {
-		switch (err){
-			case WLERR_EXIST:
-				printf("file %s does not exist or is not readable\n", msg);
-				break;
-			case WLERR_LOAD:
-				printf("Unable to load: %s\n", msg);
-				break;
-			case WLERR_GENERIC: default:
-				printf("%s\n", msg);
-		}
-		fflush(stdout);
+	switch (err){
+		case WLERR_EXIST:
+			syslog(LOG_NOTICE, "file %s does not exist or is not readable", msg);
+			break;
+		case WLERR_LOAD:
+			syslog(LOG_NOTICE, "Unable to load: %s", msg);
+			break;
+		case WLERR_WDEBUG:
+			syslog(LOG_DEBUG, "recieved wayland protocol signal %s", msg);
+			break;
+		case WLERR_DDEBUG:
+			syslog(LOG_DEBUG, "rendering: %s", msg);
+		case WLERR_GENERIC: default:
+			syslog(LOG_INFO, "%s\n", msg);
 	}
 }
 
+void report_start() {
+	int opt = LOG_ODELAY;
+	if (dolog) {
+		opt |= LOG_CONS;
+	}
+	openlog(NAME_STR, opt, LOG_USER);
+}
+
+void report_end(){
+	closelog();
+}
 
 struct option options[] = {
 	// for backwards compatibility ( currently does nothing ...)

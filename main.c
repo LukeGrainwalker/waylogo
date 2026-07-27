@@ -54,6 +54,7 @@ int main(int argc, char** argv){
 	struct window_state state = {0};
 	window_state_init(&state);
 	state.conf = waylogo_configure(argc, argv);
+	report_start();
 	state.svg = get_logo();
 	//this should never return..
 	way_launch(&state);

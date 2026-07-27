@@ -36,7 +36,7 @@ void render(struct window_state *state, int fd){
 //buffer listener
 void buffer_release(void *data, struct wl_buffer *wl_buffer){
 	wl_buffer_destroy(wl_buffer);
-	//report("buffer release");
+	//wreport("buffer release");
 }
 
 static const struct wl_buffer_listener buffer_listener = {
@@ -81,7 +81,7 @@ void configure_surface(struct window_state *state){
 	// tell the compositor to render (or just take for now) the buffer contents
 	wl_surface_commit(state->wlsurf);
 	xdg_surface_set_window_geometry(state->xdgsurf, 0, 0, width, height);
-	report("config surface func");
+	wreport("config surface func");
 }
 
 /** registry global listener
@@ -131,7 +131,7 @@ void config_handler(void* data, struct xdg_surface *xdg_surf, uint32_t serial){
 		state->tlstate = 0;
 	}
 	wl_surface_commit(state->wlsurf);
-	report("config xdg surface");
+	wreport("config xdg surface");
 }
 
 struct xdg_surface_listener config_listener = {
@@ -141,7 +141,7 @@ struct xdg_surface_listener config_listener = {
 // xdg wm base listener (respond to ping)
 void ping_handler(void *data, struct xdg_wm_base *xdg_wm_base, uint32_t serial){
 	xdg_wm_base_pong(xdg_wm_base, serial);
-	report("ping");
+	wreport("ping");
 }
 
 struct xdg_wm_base_listener ping_listener = {
@@ -182,9 +182,10 @@ void toplevel_bounds(void* data, struct xdg_toplevel *xgd_toplevel, int32_t widt
 
 void toplevel_close(void* data, struct xdg_toplevel *xdg_toplevel) {
 	// TODO: make a better exit!!!
-	report("close");
+	wreport("close");
 	struct window_state* state = data;
 	plutosvg_document_destroy(state->svg);
+	report_end();
 	free(state->conf);
 	free(state->ptr_state);
 	exit(0);
@@ -217,12 +218,12 @@ void pointer_enter_handler(void *data, struct wl_pointer *pointer, uint32_t seri
 	struct wl_cursor_image *pimage = (state->ptr_state)->image;
 	// set the default pointer surface
 	wl_pointer_set_cursor(pointer, serial, state->pointer_surf, pimage->hotspot_x, pimage->hotspot_y);
-	report("pointer enter");
+	wreport("pointer enter");
 }
 
 void pointer_leave_handler(void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface) {
 	// do nothing
-	report("pointer leave");
+	wreport("pointer leave");
 }
 
 void pointer_motion_handler(void *data, struct wl_pointer *pointer, uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {}
@@ -232,7 +233,7 @@ void pointer_button_handler(void *data, struct wl_pointer *pointer, uint32_t ser
 	struct window_state *wstate = data;
 	if (button == BTN_LEFT && (enum wl_pointer_button_state)state == WL_POINTER_BUTTON_STATE_PRESSED){
 		xdg_toplevel_move(wstate->toplevel, wstate->seat, serial);
-		report("pointer button (left button press)");
+		wreport("pointer button (left button press)");
 	}
 }
 
@@ -243,7 +244,7 @@ void pointer_frame_handler(void *data, struct wl_pointer *pointer){
 	// compositors fail to send a frame event, so we have to apply
 	// changes in the handler functions...
 	// this will probably not be seen, ever...
-	report("pointer frame");
+	wreport("pointer frame");
 }
 
 struct wl_pointer_listener pointer_listener = {
@@ -266,7 +267,7 @@ void  seat_capabilities(void *data, struct wl_seat *wl_seat, uint32_t capabiliti
 	} else if (state->pointer) {
 		wl_pointer_release(state->pointer);
 	}
-	report("seat capabilities");
+	wreport("seat capabilities");
 }
 
 void seat_name(void *data, struct wl_seat *wl_seat, const char *name){}

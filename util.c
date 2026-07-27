@@ -31,8 +31,6 @@ void report_code(enum waylogo_error err, char* msg){
 		case WLERR_WDEBUG:
 			syslog(LOG_DEBUG, "recieved wayland protocol signal %s", msg);
 			break;
-		case WLERR_DDEBUG:
-			syslog(LOG_DEBUG, "rendering: %s", msg);
 		case WLERR_GENERIC: default:
 			syslog(LOG_INFO, "%s\n", msg);
 	}

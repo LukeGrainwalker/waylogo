@@ -11,44 +11,43 @@
 int quiet = 0;
 /**
  * report a message to the console
- * TODO use syslog for loging
  */
-void report(char* msg){
-	report_prio(LOG_NOTICE, "%s" msg);
+void vreport_prio(int priority, char* fmt, va_list va){
+	va_list va2;
+
+	if (!quiet){
+		va_copy(va2, va);
+		vfprintf(stderr, fmt, va2);
+		fprintf(stderr, "\n");
+		va_end(va2);
+	}
+	vsyslog(priority, fmt, va);
+}
+void report(char* fmt, ...){
+	va_list va;
+	va_start(va);
+	vreport_prio(LOG_NOTICE, fmt, va);
+	va_end(va);
+}
+
+void ireport(char* fmt, ...){
+	va_list va;
+	va_start(va);
+	vreport_prio(LOG_INFO, fmt, va);
+	va_end(va);
 }
 
 void wreport(char* msg){
-	report(LOG_DEBUG, "wayland signal: %s", msg);
+	report_prio(LOG_DEBUG, "wayland signal: %s", msg);
 }
 
 void report_prio(int priority, char* fmt, ...){
 	va_list va;
-	va_list va2;
-
-	va_start(va, fmt);
-	if (!quiet){
-		va_copy(va2, va);
-		vfprintf(stderr, fmt, va2);
-		va_end(va2);
-	}
-	vsyslog(priority, fmt, va);
+	va_start(va);
+	vreport_prio(priority, fmt, va);
 	va_end(va);
-	/**
-	switch (err){
-		case WLERR_EXIST:
-			syslog(LOG_NOTICE, "file %s does not exist or is not readable", msg);
-			break;
-		case WLERR_LOAD:
-			syslog(LOG_NOTICE, "Unable to load: %s", msg);
-			break;
-		case WLERR_WDEBUG:
-			syslog(LOG_DEBUG, "recieved wayland protocol signal %s", msg);
-			break;
-		case WLERR_GENERIC: default:
-			syslog(LOG_INFO, "%s\n", msg);
-	}
-	*/
 }
+
 
 void report_start() {
 	int opt = LOG_ODELAY;

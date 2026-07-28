@@ -20,11 +20,11 @@ plutosvg_document_t* get_svg(char* path, char* name){
 		// load svg
 		plutosvg_document_t* svg = plutosvg_document_load_from_file(file_path, -1, -1);
 		if (svg == NULL){
-			report_code(WLERR_LOAD, file_path);
+			report("Unable to load svg: %s", file_path);
 		}
 		return svg;
 	}else{
-		report_code(WLERR_EXIST, file_path);
+		report("File %s does not exist or is not readable", file_path);
 		free(file_path);
 		return NULL;
 	}

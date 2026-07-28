@@ -50,8 +50,15 @@ endif
 conf_data = configuration_data()
 
 conf_data.set('name', meson.project_name())
+conf_data.set('version', meson.project_version())
 conf_data.set('build_dir', meson.project_build_root())
 conf_data.set('data_dir', get_option('prefix') / get_option('datadir') / meson.project_name())
+
+configure_file(
+  input: 'config.h.in',
+  output: 'config.h',
+  configuration: conf_data
+)
 
 curl = find_program('curl', required:false)
 if curl.found()
@@ -65,14 +72,10 @@ if curl.found()
   endif
 endif
 
-configure_file(
-  input: 'config.h.in',
-  output: 'config.h',
-  configuration: conf_data
-)
-
-executable(meson.project_name(), 
+exec = executable(meson.project_name(), 
   ['main.c', 'wayland.c', 'draw.c', 'util.c', xdg_shell_code, xdg_shell_header], 
   dependencies:[wldep, wayland_protos, wl_cursor_dep, plutosvg_dep],
   install: true,
 )
+
+subdir('doc')

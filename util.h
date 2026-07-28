@@ -12,6 +12,7 @@ void report_end();
 #define CONFIG_SHAPE 0x08
 #define CONFIG_HELP 0x10
 #define CONFIG_DEBUG 0x20
+#define CONFIG_VERSION 0x40
 
 struct waylogo_config {
 	int flags;

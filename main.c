@@ -20,7 +20,7 @@ plutosvg_document_t* get_svg(char* path, char* name){
 		// load svg
 		plutosvg_document_t* svg = plutosvg_document_load_from_file(file_path, -1, -1);
 		if (svg == NULL){
-			report("Unable to load svg: %s"file_path);
+			report("Unable to load svg: %s", file_path);
 		}
 		return svg;
 	}else{
@@ -54,7 +54,6 @@ int main(int argc, char** argv){
 	struct window_state state = {0};
 	window_state_init(&state);
 	state.conf = waylogo_configure(argc, argv);
-	report_start();
 	state.svg = get_logo();
 	//this should never return..
 	way_launch(&state);

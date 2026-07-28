@@ -20,7 +20,7 @@ void checker(uint32_t *buf, int width, int height){
  * uses plutosvg to draw an svg image
  */
 void image(uint32_t *buf, plutosvg_document_t *svg, int width, int height){
-	report("image");
+	ireport("redering the svg (image())");
 	//prepair surface
 	int stride = width * 4;
 	plutovg_surface_t *dest = plutovg_surface_create_for_data((unsigned char *)buf, width, height, stride);

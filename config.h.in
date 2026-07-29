@@ -1,3 +1,4 @@
 #define NAME_STR "@name@"
+#define VERSION_STR "@version@"
 #define BUILD_PATH "@build_dir@"
 #define DATA_PATH "@data_dir@"

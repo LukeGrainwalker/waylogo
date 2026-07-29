@@ -1,0 +1,1 @@
+complete -W "-render -sharp -shape -quiet -help -debug -version" waylogo

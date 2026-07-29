@@ -70,18 +70,38 @@ struct option options[] = {
 	{"quiet", 0, NULL, CONFIG_QUIET},
 	{"help", 0, NULL, CONFIG_HELP},
 	{"debug", 0, NULL, CONFIG_DEBUG},
+	{"version", 0, NULL, CONFIG_VERSION},
 	{NULL, 0, NULL, 0}
+};
+
+char *descriptions[] = {
+	"do nothing (xlogo option)",
+	"do nothing (xlogo option)",
+	"do nothing (xlogo option)",
+	"do not print log messages to stderr",
+	"print a help message and exit",
+	"log debug messages",
+	"print the version string and exit"
 };
 
 /**
  * print help and exit...
  */
 void phelp(int argc, char** argv){
-	printf("usage: %s", argv[0]);
+	printf("Usage: %s", argv[0]);
 	for (int i = 0; options[i].name; i++){
 		printf(" [-%s]", options[i].name);
 	}
+	printf("\n\nShow the Wayland protocol logo\n\nOptions:\n");
+	for (int i = 0; options[i].name; i++){
+		printf("\t-%s\t%s\n", options[i].name, descriptions[i]);
+	}
 	printf("\n");
+	exit(0);
+}
+
+void pversion(){
+	printf("%s %s\n", NAME_STR, VERSION_STR);
 	exit(0);
 }
 
@@ -106,6 +126,8 @@ struct waylogo_config *waylogo_configure(int argc, char** argv) {
 				break;
 			case CONFIG_HELP:
 				phelp(argc, argv);
+			case CONFIG_VERSION:
+				pversion();
 			case CONFIG_DEBUG:
 				conf->log_level = LOG_DEBUG;
 		}

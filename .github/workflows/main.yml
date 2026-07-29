@@ -7,6 +7,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+      - name: Install help2man
+        run:
+          apt install help2man
       - name: Setup
         uses: BSFishy/meson-build@v1.0.3
         with:

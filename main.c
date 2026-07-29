@@ -14,6 +14,10 @@
  */
 plutosvg_document_t* get_svg(char* path, char* name){
 	char* file_path = malloc(strlen(path) + strlen(name));
+	if (file_path == NULL) {
+		ereport("malloc: %m");
+		return NULL;
+	}
 	strcpy(file_path, path);
 	strcat(file_path, name);
 	if (access(file_path, R_OK) == 0){
@@ -47,15 +51,18 @@ plutosvg_document_t *get_logo(){
 			path = get_svg(".", logo);
 		}
 	}
+	if (path == NULL) {
+		ereport("could not find a logo");
+		return NULL
+	}
 	return path;
 }
 
 int main(int argc, char** argv){
-	struct window_state state = {0};
-	window_state_init(&state);
-	state.conf = waylogo_configure(argc, argv);
-	state.svg = get_logo();
+	struct window_state state = window_state_init();
+	state->conf = waylogo_configure(argc, argv);
+	state->svg = get_logo();
 	//this should never return..
-	way_launch(&state);
+	way_launch(state);
 	return 0;
 }

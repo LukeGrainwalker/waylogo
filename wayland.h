@@ -66,6 +66,6 @@ void  seat_capabilities(void *data, struct wl_seat *wl_seat, uint32_t capabiliti
 
 void seat_name(void *data, struct wl_seat *wl_seat, const char *name);
 
-void window_state_init(struct window_state *state);
+struct window_state *window_state_init();
 
 void way_launch(struct window_state *state);

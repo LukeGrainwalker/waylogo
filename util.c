@@ -38,6 +38,13 @@ void ireport(char* fmt, ...){
 	va_end(va);
 }
 
+void ereport(char* fmt, ...){
+	va_list va;
+	va_start(va, fmt);
+	vreport_prio(LOG_ERR, fmt, va);
+	va_end(va);
+}
+
 void wreport(char* msg){
 	report_prio(LOG_DEBUG, "wayland signal: %s", msg);
 }
@@ -112,6 +119,10 @@ void pversion(){
 struct waylogo_config *waylogo_configure(int argc, char** argv) {
 	int opt;
 	struct waylogo_config *conf = malloc(sizeof(struct waylogo_config));
+	if (conf == NULL){
+		ereport("malloc: %m");
+		exit(1);
+	}
 	memset(conf, 0, sizeof(struct waylogo_config));
 	//set defaults:
 	conf->log_level = LOG_NOTICE;

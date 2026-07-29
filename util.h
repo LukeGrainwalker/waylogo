@@ -1,5 +1,6 @@
 void report(char* fmt, ...);
 void ireport(char* fmt, ...);
+void ereport(char* fmt, ...);
 void wreport(char* msg);
 void report_prio(int priority, char* fmt, ...);
 void report_start(int log_level);

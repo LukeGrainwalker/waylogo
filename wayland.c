@@ -184,10 +184,32 @@ void toplevel_close(void* data, struct xdg_toplevel *xdg_toplevel) {
 	// TODO: make a better exit!!!
 	wreport("xdg_toplevel::close");
 	struct window_state* state = data;
+	if (state == NULL) return;
+	if (state->seat != NULL) {
+		wl_seat_release(state->seat);
+	}
+	if (state->pointer != NULL) {
+		wl_pointer_release(state->pointer);
+	}
+	if (state->shell != NULL) {
+		xdg_wm_base_destroy(state->shell);
+	}
+	if (state->shm != NULL) {
+		wl_shm_destroy(state->shm);
+	}
+	if (state->comp != NULL) {
+		wl_compositor_destroy(state->comp);
+	}
+	//wl_proxy_destroy(state->disp);
+	//wl_event_queue_destroy(state->disp);
+	if (state->disp != NULL) {
+		wl_display_disconnect(state->disp);
+	}
 	plutosvg_document_destroy(state->svg);
 	report_end();
 	free(state->conf);
 	free(state->ptr_state);
+	free(state);
 	exit(0);
 }
 
@@ -282,7 +304,9 @@ struct wl_seat_listener seat_listener = {
 /**
  * initialize the window state structure
  */
-void window_state_init(struct window_state *state) {
+void window_state_init() {
+	struct window_state *state = malloc(sizeof(struct window_state));
+	memset(state, 0, sizeof(struct window_state));
 	state->changed = 1;
 	state->ptr_state = malloc(sizeof(struct pointer_state));
 	memset(state->ptr_state, 0, sizeof(struct pointer_state));
@@ -294,8 +318,15 @@ void window_state_init(struct window_state *state) {
 void way_launch(struct window_state *state){
 	// init connection, get the display
 	state->disp = wl_display_connect(NULL);
+	if (state->disp == NULL) {
+		ereport("could not connect to a wayland display");
+		exit(0);
+	}
 	// retrive the registry
 	state->reg = wl_display_get_registry(state->disp);
+	if (state->reg == NULL) {
+		ereport("could not get the wayland registry");
+	}
 	// add the registry listener
 	wl_registry_add_listener(state->reg, &registry_listener, state);
 

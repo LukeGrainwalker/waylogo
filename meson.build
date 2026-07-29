@@ -79,3 +79,4 @@ exec = executable(meson.project_name(),
 )
 
 subdir('doc')
+subdir('completion')

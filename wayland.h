@@ -51,6 +51,7 @@ void ping_handler(void *data, struct xdg_wm_base *xdg_wm_base, uint32_t serial);
 void toplevel_conf(void* data, struct xdg_toplevel *xgd_toplevel, int32_t width, int32_t height, struct wl_array *states);
 void toplevel_bounds(void* data, struct xdg_toplevel *xgd_toplevel, int32_t width, int32_t height);
 void toplevel_close(void* data, struct xdg_toplevel *xdg_toplevel);
+void close_win(struct window_state *state);
 void toplevel_capabil(void* data, struct xdg_toplevel *xdg_toplevel, struct wl_array *capabilities);
 
 void ptr_delete(struct pointer_state* pstate);

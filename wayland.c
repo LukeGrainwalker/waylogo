@@ -22,6 +22,10 @@ void render(struct window_state *state, int fd){
 
 	// map the file into memory
 	uint32_t *data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	if (data == MAP_FAILED) {
+		ereport("could not map the file into memory: %m");
+		close_win(state);
+	}
 	// render the svg logo if it exists
 	if (state->svg) {
 		image(data, state->svg, state->width, state->height);
@@ -44,31 +48,39 @@ static const struct wl_buffer_listener buffer_listener = {
 };
 
 void configure_surface(struct window_state *state){
-	int32_t width, height;
 	if (state->width <= 0 || state->height <= 0) {
-		width = 200;
-		height = 200;
-	}else{
-		width = state->width;
-		height = state->height;
+		state->width = 200;
+		state->height = 200;
 	}
 
-	int stride = width * 4;
-	int size = stride*height;
+	int stride = state->width * 4;
+	int size = stride * state->height;
 
 	// open an anonymous file (that only we and the compositor will know about) and write some zero bytes to it
 	//int fd = memfd_create("buffer", 0);
 	// function memfd_create is not in any header file... (get's rid of warnings)
 	int fd = syscall(SYS_memfd_create, "buffer", 0);
+	if (fd == -1){
+		ereport("can't open a anonymous file: %m");
+		close_win(state);
+	}
 	ftruncate(fd, size);
 
 	render(state, fd);
 	
 	// turn it into a shared memory pool (tell the compositor, that it should create a pool in fd)
 	struct wl_shm_pool *pool = wl_shm_create_pool(state->shm, fd, size);
+	if (pool == NULL){
+		ereport("can't get a pool frome a file descriptor: %m");
+		close_win(state);
+	}
 
 	//allocate the buffer in that pool (tell the compositor to memory share and how to interpret the data)
-	struct wl_buffer *buffer = wl_shm_pool_create_buffer(pool, 0, width, height, stride, WL_SHM_FORMAT_XRGB8888);
+	struct wl_buffer *buffer = wl_shm_pool_create_buffer(pool, 0, state->width, state->height, stride, WL_SHM_FORMAT_XRGB8888);
+	if (buffer == NULL){
+		ereport("can't get a buffer from the shm pool: %m");
+		close_win(state);
+	}
 
 	wl_shm_pool_destroy(pool);
 	close(fd);
@@ -80,7 +92,7 @@ void configure_surface(struct window_state *state){
 
 	// tell the compositor to render (or just take for now) the buffer contents
 	wl_surface_commit(state->wlsurf);
-	xdg_surface_set_window_geometry(state->xdgsurf, 0, 0, width, height);
+	xdg_surface_set_window_geometry(state->xdgsurf, 0, 0, state->width, state->height);
 	ireport("configuring the surface");
 }
 
@@ -91,6 +103,7 @@ void configure_surface(struct window_state *state){
  */
 void registry_global_handler(void *data , struct wl_registry *registry, uint32_t name, const char *interface, uint32_t version){
 	struct window_state *state = data;
+	// we don't care for errors here ... 
 	if (strcmp(interface, "wl_compositor") == 0){
 		state->comp = wl_registry_bind(registry, name, &wl_compositor_interface, 3);
 	} else if (strcmp(interface, "wl_shm") == 0){
@@ -174,9 +187,11 @@ void toplevel_bounds(void* data, struct xdg_toplevel *xgd_toplevel, int32_t widt
 	struct window_state* state = data;
 	if (state->width > width) {
 		state->width = width;
+		state->changed = 1;
 	}
 	if (state->height > height) {
 		state->height = height;
+		state->changed = 1;
 	}
 }
 
@@ -184,10 +199,42 @@ void toplevel_close(void* data, struct xdg_toplevel *xdg_toplevel) {
 	// TODO: make a better exit!!!
 	wreport("xdg_toplevel::close");
 	struct window_state* state = data;
+	close_win(state);
+}
+
+void close_win(struct window_state *state){
+	if (state == NULL) return;
+	if (state->seat != NULL) {
+		wl_seat_release(state->seat);
+	}
+	if (state->pointer != NULL) {
+		wl_pointer_release(state->pointer);
+	}
+	if (state->ptr_state != NULL){
+		ptr_delete(state->ptr_state);
+	}
+	if (state->wlsurf) {
+		wl_surface_destroy(state->wlsurf);
+	}
+	if (state->shell != NULL) {
+		xdg_wm_base_destroy(state->shell);
+	}
+	if (state->shm != NULL) {
+		wl_shm_destroy(state->shm);
+	}
+	if (state->comp != NULL) {
+		wl_compositor_destroy(state->comp);
+	}
+	//wl_proxy_destroy(state->disp);
+	//wl_event_queue_destroy(state->disp);
+	if (state->disp != NULL) {
+		wl_display_disconnect(state->disp);
+	}
 	plutosvg_document_destroy(state->svg);
 	report_end();
 	free(state->conf);
 	free(state->ptr_state);
+	free(state);
 	exit(0);
 }
 
@@ -204,6 +251,18 @@ struct xdg_toplevel_listener event_listener = {
  * pointer input section
  * The following section takes care of pointer and seat menagement
  */
+
+/**
+ * delete all of the data associated with the cursor/pointer
+ */
+void ptr_delete(struct pointer_state *pstate) {
+	if (pstate->surf) {
+		wl_surface_destroy(pstate->surf);
+	}
+	if (pstate->theme != NULL) {
+		wl_cursor_theme_destroy(pstate->theme);
+	}
+}
 /**
  * pointer listener (listen for changes of the pointer)
  * this is another accumulation event sequens, all values recived in
@@ -215,9 +274,12 @@ struct xdg_toplevel_listener event_listener = {
 void pointer_enter_handler(void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface, wl_fixed_t surface_x, wl_fixed_t surface_y){
 	// set pointer ...
 	struct window_state *state = (struct window_state *)data;
-	struct wl_cursor_image *pimage = (state->ptr_state)->image;
+	struct pointer_state *pstate = state->ptr_state;
 	// set the default pointer surface
-	wl_pointer_set_cursor(pointer, serial, state->pointer_surf, pimage->hotspot_x, pimage->hotspot_y);
+	if (pstate->surf != NULL && pstate->image != NULL){
+		struct wl_cursor_image *pimage = pstate->image;
+		wl_pointer_set_cursor(pointer, serial, pstate->surf, pimage->hotspot_x, pimage->hotspot_y);
+	}
 	wreport("wl_pointer::enter");
 }
 
@@ -282,10 +344,16 @@ struct wl_seat_listener seat_listener = {
 /**
  * initialize the window state structure
  */
-void window_state_init(struct window_state *state) {
+struct window_state* window_state_init() {
+	struct window_state *state = malloc(sizeof(struct window_state));
+	memset(state, 0, sizeof(struct window_state));
+	// using this the first frame goes to waste (on tilers or just wlroots)
+	// becouse the compositor only tells us about the requested dimensions
+	// after a reconigure...
 	state->changed = 1;
 	state->ptr_state = malloc(sizeof(struct pointer_state));
 	memset(state->ptr_state, 0, sizeof(struct pointer_state));
+	return state;
 }
 /**
  * lauch the waylogo window
@@ -294,8 +362,17 @@ void window_state_init(struct window_state *state) {
 void way_launch(struct window_state *state){
 	// init connection, get the display
 	state->disp = wl_display_connect(NULL);
+	if (state->disp == NULL) {
+		ereport("could not connect to a wayland display");
+		close_win(state);
+	}
 	// retrive the registry
 	state->reg = wl_display_get_registry(state->disp);
+	if (state->reg == NULL) {
+		// wl_display_get_registry is using wl_proxy_marshal_flags which set's errno (that's why we use %m)
+		ereport("could not get the wayland registry: %m");
+		close_win(state);
+	}
 	// add the registry listener
 	wl_registry_add_listener(state->reg, &registry_listener, state);
 
@@ -303,37 +380,58 @@ void way_launch(struct window_state *state){
 	wl_display_roundtrip(state->disp);
 
 	// add the ping listener
-	xdg_wm_base_add_listener(state->shell, &ping_listener, NULL);
+	if (state->shell != NULL){
+		xdg_wm_base_add_listener(state->shell, &ping_listener, NULL);
+	}
 
-	// add the seat listener (listen for the capabilities (does a pointer exist?))
-	wl_seat_add_listener(state->seat, &seat_listener, state);
+	if (state->seat != NULL) {
+		// add the seat listener (listen for the capabilities (does a pointer exist?))
+		wl_seat_add_listener(state->seat, &seat_listener, state);
 
-	// prepair the cursor surface this will stay in memory until exit
-	struct pointer_state *pstate = state->ptr_state;
-	struct wl_cursor_theme *theme = wl_cursor_theme_load(NULL, 24, state->shm);
-	struct wl_cursor *cursor = wl_cursor_theme_get_cursor(theme, "left_ptr");
-	
-	pstate->image = cursor->images[0];
-	struct wl_buffer *cursor_buffer = wl_cursor_image_get_buffer(pstate->image);
-	wl_buffer_add_listener(cursor_buffer, &buffer_listener, NULL);
-	
-	// create a new surface for the cursor image buffer
-	state->pointer_surf = wl_compositor_create_surface(state->comp);
-	wl_surface_attach(state->pointer_surf, cursor_buffer, 0, 0);
-	wl_surface_commit(state->pointer_surf);
+		// prepair the cursor surface this will stay in memory until exit
+		struct pointer_state *pstate = state->ptr_state;
+		pstate->theme = wl_cursor_theme_load(NULL, 24, state->shm);
+		if (pstate->theme != NULL) {
+			pstate->cursor = wl_cursor_theme_get_cursor(pstate->theme, "left_ptr");
+			if (pstate->cursor != 0){
+				pstate->image = (pstate->cursor)->images[0];
+				struct wl_buffer *cursor_buffer = wl_cursor_image_get_buffer(pstate->image);
+				// might not be needet, since the the documentation says, 
+				// that the buffer schould not be closed by the user 
+				//wl_buffer_add_listener(cursor_buffer, &buffer_listener, NULL);
+				
+				// create a new surface for the cursor image buffer
+				pstate->surf = wl_compositor_create_surface(state->comp);
+				wl_surface_attach(pstate->surf, cursor_buffer, 0, 0);
+				wl_surface_commit(pstate->surf);
+			} else {
+				ireport("cursor 'left_ptr' could not be found: %m");
+			}
+		} else {
+			ireport("no cursor theme could be found: %m");
+		}
+	}
 
 	//create a surface and assign the toplevel role
-	state->wlsurf = wl_compositor_create_surface(state->comp);
-	state->xdgsurf = xdg_wm_base_get_xdg_surface(state->shell, state->wlsurf);
-	xdg_surface_add_listener(state->xdgsurf, &config_listener, state);
-	//get and asign the toplevel role to the window
-	state->toplevel = xdg_surface_get_toplevel(state->xdgsurf);
-	xdg_toplevel_add_listener(state->toplevel, &event_listener, state);
-	xdg_toplevel_set_title(state->toplevel, NAME_STR);
+	if (state->comp != NULL) {
+		state->wlsurf = wl_compositor_create_surface(state->comp);
+		if (state->shell != NULL) {
+			state->xdgsurf = xdg_wm_base_get_xdg_surface(state->shell, state->wlsurf);
+			xdg_surface_add_listener(state->xdgsurf, &config_listener, state);
+			//get and asign the toplevel role to the window
+			state->toplevel = xdg_surface_get_toplevel(state->xdgsurf);
+			xdg_toplevel_add_listener(state->toplevel, &event_listener, state);
+			xdg_toplevel_set_title(state->toplevel, NAME_STR);
+		}
 
-	// xdg surface configure sequens
-	wl_surface_commit(state->wlsurf);
-	wl_display_roundtrip(state->disp);
+		// xdg surface configure sequens
+		wl_surface_commit(state->wlsurf);
+		wl_display_roundtrip(state->disp);
+	} else {
+		// becouse there is no compositor?
+		ereport("could not get a compositor: %m");
+		close_win(state);
+	}
 	
 	while (1) {
 		wl_display_dispatch(state->disp);

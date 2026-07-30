@@ -1,4 +1,4 @@
-project('waylogo', 'c', version:'0.01', meson_version: '>=1.6.0')
+project('waylogo', 'c', version:'0.10', meson_version: '>=1.6.0')
 
 wayland_scanner_dep = dependency('wayland-scanner',
   fallback: 'wayland',

@@ -48,17 +48,13 @@ static const struct wl_buffer_listener buffer_listener = {
 };
 
 void configure_surface(struct window_state *state){
-	int32_t width, height;
 	if (state->width <= 0 || state->height <= 0) {
-		width = 200;
-		height = 200;
-	}else{
-		width = state->width;
-		height = state->height;
+		state->width = 200;
+		state->height = 200;
 	}
 
-	int stride = width * 4;
-	int size = stride*height;
+	int stride = state->width * 4;
+	int size = stride * state->height;
 
 	// open an anonymous file (that only we and the compositor will know about) and write some zero bytes to it
 	//int fd = memfd_create("buffer", 0);
@@ -80,7 +76,7 @@ void configure_surface(struct window_state *state){
 	}
 
 	//allocate the buffer in that pool (tell the compositor to memory share and how to interpret the data)
-	struct wl_buffer *buffer = wl_shm_pool_create_buffer(pool, 0, width, height, stride, WL_SHM_FORMAT_XRGB8888);
+	struct wl_buffer *buffer = wl_shm_pool_create_buffer(pool, 0, state->width, state->height, stride, WL_SHM_FORMAT_XRGB8888);
 	if (buffer == NULL){
 		ereport("can't get a buffer from the shm pool: %m");
 		close_win(state);
@@ -96,7 +92,7 @@ void configure_surface(struct window_state *state){
 
 	// tell the compositor to render (or just take for now) the buffer contents
 	wl_surface_commit(state->wlsurf);
-	xdg_surface_set_window_geometry(state->xdgsurf, 0, 0, width, height);
+	xdg_surface_set_window_geometry(state->xdgsurf, 0, 0, state->width, state->height);
 	ireport("configuring the surface");
 }
 
@@ -191,9 +187,11 @@ void toplevel_bounds(void* data, struct xdg_toplevel *xgd_toplevel, int32_t widt
 	struct window_state* state = data;
 	if (state->width > width) {
 		state->width = width;
+		state->changed = 1;
 	}
 	if (state->height > height) {
 		state->height = height;
+		state->changed = 1;
 	}
 }
 
@@ -349,6 +347,9 @@ struct wl_seat_listener seat_listener = {
 struct window_state* window_state_init() {
 	struct window_state *state = malloc(sizeof(struct window_state));
 	memset(state, 0, sizeof(struct window_state));
+	// using this the first frame goes to waste (on tilers or just wlroots)
+	// becouse the compositor only tells us about the requested dimensions
+	// after a reconigure...
 	state->changed = 1;
 	state->ptr_state = malloc(sizeof(struct pointer_state));
 	memset(state->ptr_state, 0, sizeof(struct pointer_state));
@@ -397,7 +398,7 @@ void way_launch(struct window_state *state){
 				struct wl_buffer *cursor_buffer = wl_cursor_image_get_buffer(pstate->image);
 				// might not be needet, since the the documentation says, 
 				// that the buffer schould not be closed by the user 
-				wl_buffer_add_listener(cursor_buffer, &buffer_listener, NULL);
+				//wl_buffer_add_listener(cursor_buffer, &buffer_listener, NULL);
 				
 				// create a new surface for the cursor image buffer
 				pstate->surf = wl_compositor_create_surface(state->comp);

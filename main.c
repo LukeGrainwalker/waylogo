@@ -53,13 +53,13 @@ plutosvg_document_t *get_logo(){
 	}
 	if (path == NULL) {
 		ereport("could not find a logo");
-		return NULL
+		return NULL;
 	}
 	return path;
 }
 
 int main(int argc, char** argv){
-	struct window_state state = window_state_init();
+	struct window_state *state = window_state_init();
 	state->conf = waylogo_configure(argc, argv);
 	state->svg = get_logo();
 	//this should never return..

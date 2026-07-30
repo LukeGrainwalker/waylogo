@@ -191,6 +191,12 @@ void toplevel_close(void* data, struct xdg_toplevel *xdg_toplevel) {
 	if (state->pointer != NULL) {
 		wl_pointer_release(state->pointer);
 	}
+	if (state->ptr_state != NULL){
+		ptr_delete(state->ptr_state);
+	}
+	if (state->wlsurf) {
+		wl_surface_destroy(state->wlsurf);
+	}
 	if (state->shell != NULL) {
 		xdg_wm_base_destroy(state->shell);
 	}
@@ -226,6 +232,18 @@ struct xdg_toplevel_listener event_listener = {
  * pointer input section
  * The following section takes care of pointer and seat menagement
  */
+
+/**
+ * delete all of the data associated with the cursor/pointer
+ */
+void ptr_delete(struct pointer_state *pstate) {
+	if (pstate->surf) {
+		wl_surface_destroy(pstate->surf);
+	}
+	if (pstate->theme != NULL) {
+		wl_cursor_theme_destroy(pstate->theme);
+	}
+}
 /**
  * pointer listener (listen for changes of the pointer)
  * this is another accumulation event sequens, all values recived in
@@ -237,9 +255,10 @@ struct xdg_toplevel_listener event_listener = {
 void pointer_enter_handler(void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface, wl_fixed_t surface_x, wl_fixed_t surface_y){
 	// set pointer ...
 	struct window_state *state = (struct window_state *)data;
-	struct wl_cursor_image *pimage = (state->ptr_state)->image;
+	struct pointer_state *pstate = state->ptr_state;
+	struct wl_cursor_image *pimage = pstate->image;
 	// set the default pointer surface
-	wl_pointer_set_cursor(pointer, serial, state->pointer_surf, pimage->hotspot_x, pimage->hotspot_y);
+	wl_pointer_set_cursor(pointer, serial, pstate->surf, pimage->hotspot_x, pimage->hotspot_y);
 	wreport("wl_pointer::enter");
 }
 
@@ -304,12 +323,13 @@ struct wl_seat_listener seat_listener = {
 /**
  * initialize the window state structure
  */
-void window_state_init() {
+struct window_state* window_state_init() {
 	struct window_state *state = malloc(sizeof(struct window_state));
 	memset(state, 0, sizeof(struct window_state));
 	state->changed = 1;
 	state->ptr_state = malloc(sizeof(struct pointer_state));
 	memset(state->ptr_state, 0, sizeof(struct pointer_state));
+	return state;
 }
 /**
  * lauch the waylogo window
@@ -325,7 +345,8 @@ void way_launch(struct window_state *state){
 	// retrive the registry
 	state->reg = wl_display_get_registry(state->disp);
 	if (state->reg == NULL) {
-		ereport("could not get the wayland registry");
+		// wl_display_get_registry is using wl_proxy_marshal_flags which set's errno (that's why we use %m)
+		ereport("could not get the wayland registry: %m");
 	}
 	// add the registry listener
 	wl_registry_add_listener(state->reg, &registry_listener, state);
@@ -337,21 +358,25 @@ void way_launch(struct window_state *state){
 	xdg_wm_base_add_listener(state->shell, &ping_listener, NULL);
 
 	// add the seat listener (listen for the capabilities (does a pointer exist?))
-	wl_seat_add_listener(state->seat, &seat_listener, state);
+	if (state->seat != NULL) {
+		wl_seat_add_listener(state->seat, &seat_listener, state);
 
-	// prepair the cursor surface this will stay in memory until exit
-	struct pointer_state *pstate = state->ptr_state;
-	struct wl_cursor_theme *theme = wl_cursor_theme_load(NULL, 24, state->shm);
-	struct wl_cursor *cursor = wl_cursor_theme_get_cursor(theme, "left_ptr");
-	
-	pstate->image = cursor->images[0];
-	struct wl_buffer *cursor_buffer = wl_cursor_image_get_buffer(pstate->image);
-	wl_buffer_add_listener(cursor_buffer, &buffer_listener, NULL);
-	
-	// create a new surface for the cursor image buffer
-	state->pointer_surf = wl_compositor_create_surface(state->comp);
-	wl_surface_attach(state->pointer_surf, cursor_buffer, 0, 0);
-	wl_surface_commit(state->pointer_surf);
+		// prepair the cursor surface this will stay in memory until exit
+		struct pointer_state *pstate = state->ptr_state;
+		pstate->theme = wl_cursor_theme_load(NULL, 24, state->shm);
+		pstate->cursor = wl_cursor_theme_get_cursor(pstate->theme, "left_ptr");
+		
+		pstate->image = (pstate->cursor)->images[0];
+		struct wl_buffer *cursor_buffer = wl_cursor_image_get_buffer(pstate->image);
+		// might not be needet, since the the documentation says, 
+		// that the buffer schould not be closed by the user 
+		wl_buffer_add_listener(cursor_buffer, &buffer_listener, NULL);
+		
+		// create a new surface for the cursor image buffer
+		pstate->surf = wl_compositor_create_surface(state->comp);
+		wl_surface_attach(pstate->surf, cursor_buffer, 0, 0);
+		wl_surface_commit(pstate->surf);
+	}
 
 	//create a surface and assign the toplevel role
 	state->wlsurf = wl_compositor_create_surface(state->comp);

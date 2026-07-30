@@ -2,7 +2,10 @@
 #include "xdg-shell-protocol.h"
 
 struct pointer_state {
+	struct wl_cursor_theme *theme;
 	struct wl_cursor_image *image;
+	struct wl_cursor *cursor;
+	struct wl_surface *surf;
 };
 
 struct window_state {
@@ -16,7 +19,6 @@ struct window_state {
 	/*Objects*/
 	struct wl_surface *wlsurf;
 	struct wl_pointer *pointer;
-	struct wl_surface *pointer_surf;
 	struct xdg_surface *xdgsurf;
 	struct xdg_toplevel *toplevel;
 	/*Settings*/
@@ -51,6 +53,7 @@ void toplevel_bounds(void* data, struct xdg_toplevel *xgd_toplevel, int32_t widt
 void toplevel_close(void* data, struct xdg_toplevel *xdg_toplevel);
 void toplevel_capabil(void* data, struct xdg_toplevel *xdg_toplevel, struct wl_array *capabilities);
 
+void ptr_delete(struct pointer_state* pstate);
 void pointer_enter_handler(void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface, wl_fixed_t surface_x, wl_fixed_t surface_y);
 
 void pointer_leave_handler(void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface);

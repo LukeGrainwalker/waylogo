@@ -142,8 +142,6 @@ const struct wl_registry_listener registry_listener = {
 void config_handler(void* data, struct xdg_surface *xdg_surf, uint32_t serial){
 	xdg_surface_ack_configure(xdg_surf, serial);
 	struct window_state *state = data;
-	if (state->changed) configure_surface(state);
-	state->changed = 0;
 	if (state->tlstate == XDG_TOPLEVEL_STATE_MAXIMIZED) {
 		xdg_toplevel_set_maximized(state->toplevel);
 		state->current = state->tlstate;
@@ -153,6 +151,13 @@ void config_handler(void* data, struct xdg_surface *xdg_surf, uint32_t serial){
 		state->current = state->tlstate;
 		state->tlstate = 0;
 	}
+	if ((state->conf)->flags & CONFIG_FLOATING) {
+		// set min and max size to the floating size...
+		xdg_toplevel_set_max_size(state->toplevel, 200, 200);
+		xdg_toplevel_set_min_size(state->toplevel, 200, 200);
+	}
+	if (state->changed) configure_surface(state);
+	state->changed = 0;
 	wl_surface_commit(state->wlsurf);
 	wreport("xdg_surface::configure");
 }
@@ -174,6 +179,7 @@ struct xdg_wm_base_listener ping_listener = {
 // xdg toplevel listener (configuration and window events...)
 void toplevel_conf(void* data, struct xdg_toplevel *xgd_toplevel, int32_t width, int32_t height, struct wl_array *states){
 	struct window_state* state = data;
+	if ((state->conf)->flags & CONFIG_FLOATING) return;
 	if (width > 0 
 		&& height > 0 
 		&& (state->width != width 
@@ -201,6 +207,7 @@ void toplevel_conf(void* data, struct xdg_toplevel *xgd_toplevel, int32_t width,
 
 void toplevel_bounds(void* data, struct xdg_toplevel *xgd_toplevel, int32_t width, int32_t height){
 	struct window_state* state = data;
+	if ((state->conf)->flags & CONFIG_FLOATING) return;
 	if (state->width > width) {
 		state->width = width;
 		state->changed = 1;
@@ -376,6 +383,12 @@ struct window_state* window_state_init() {
  * this should never return...
  */
 void way_launch(struct window_state *state){
+	// a quick check for the floating flag
+	if ((state->conf)->flags & CONFIG_FLOATING){
+		state->floating = 1;
+		state->width = 200;
+		state->height = 200;
+	}
 	// init connection, get the display
 	state->disp = wl_display_connect(NULL);
 	if (state->disp == NULL) {

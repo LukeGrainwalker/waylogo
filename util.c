@@ -78,6 +78,7 @@ struct option options[] = {
 	{"help", 0, NULL, CONFIG_HELP},
 	{"debug", 0, NULL, CONFIG_DEBUG},
 	{"version", 0, NULL, CONFIG_VERSION},
+	{"floating", 0, NULL, CONFIG_FLOATING},
 	{NULL, 0, NULL, 0}
 };
 
@@ -88,7 +89,8 @@ char *descriptions[] = {
 	"do not print log messages to stderr",
 	"print a help message and exit",
 	"log debug messages",
-	"print the version string and exit"
+	"print the version string and exit",
+	"force the window to be floating"
 };
 
 /**

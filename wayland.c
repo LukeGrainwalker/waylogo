@@ -26,6 +26,9 @@ void render(struct window_state *state, int fd){
 		ereport("could not map the file into memory: %m");
 		close_win(state);
 	}
+	if ((state->conf)->flags & CONFIG_SHAPE && state->floating){
+		memset(data, 0, size);
+	}
 	// render the svg logo if it exists
 	if (state->svg) {
 		image(data, state->svg, state->width, state->height);
@@ -51,6 +54,7 @@ void configure_surface(struct window_state *state){
 	if (state->width <= 0 || state->height <= 0) {
 		state->width = 200;
 		state->height = 200;
+		state->floating = 1;
 	}
 
 	int stride = state->width * 4;
@@ -75,8 +79,14 @@ void configure_surface(struct window_state *state){
 		close_win(state);
 	}
 
+	// check for transparency
+	int format = WL_SHM_FORMAT_XRGB8888;
+	if ((state->conf)->flags & CONFIG_SHAPE && state->floating){
+		format = WL_SHM_FORMAT_ARGB8888;
+	}
+
 	//allocate the buffer in that pool (tell the compositor to memory share and how to interpret the data)
-	struct wl_buffer *buffer = wl_shm_pool_create_buffer(pool, 0, state->width, state->height, stride, WL_SHM_FORMAT_XRGB8888);
+	struct wl_buffer *buffer = wl_shm_pool_create_buffer(pool, 0, state->width, state->height, stride, format);
 	if (buffer == NULL){
 		ereport("can't get a buffer from the shm pool: %m");
 		close_win(state);
@@ -171,6 +181,11 @@ void toplevel_conf(void* data, struct xdg_toplevel *xgd_toplevel, int32_t width,
 		state->width = width;
 		state->height = height;
 		state->changed = 1;
+		state->floating = 0;
+	}
+	//because for what ever reason the compositor remenbers the size...
+	if (width == 200 && height == 200) {
+		state->floating = 1;
 	}
 	enum xdg_toplevel_state *s;
 	wl_array_for_each(s, states) {
@@ -179,6 +194,7 @@ void toplevel_conf(void* data, struct xdg_toplevel *xgd_toplevel, int32_t width,
 			|| *s == XDG_TOPLEVEL_STATE_FULLSCREEN)) {
 			state->tlstate = *s;
 			state->changed = 1;
+			state->floating = 0;
 		}
 	}
 }

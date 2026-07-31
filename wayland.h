@@ -27,6 +27,7 @@ struct window_state {
 	enum xdg_toplevel_state tlstate;
 	enum xdg_toplevel_state current;
 	int changed; //is set when there was a change made to the dimensions since the last xdg_surface config
+	int floating;
 	struct pointer_state *ptr_state;
 	/*Misc*/
 	plutosvg_document_t *svg;

@@ -84,7 +84,7 @@ struct option options[] = {
 char *descriptions[] = {
 	"do nothing (xlogo option)",
 	"do nothing (xlogo option)",
-	"do nothing (xlogo option)",
+	"make the background transparent (xlogo option)",
 	"do not print log messages to stderr",
 	"print a help message and exit",
 	"log debug messages",

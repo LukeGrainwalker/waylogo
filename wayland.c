@@ -183,6 +183,7 @@ void toplevel_conf(void* data, struct xdg_toplevel *xgd_toplevel, int32_t width,
 		state->changed = 1;
 		state->floating = 0;
 	}
+	//because for what ever reason the compositor remenbers the size...
 	if (width == 200 && height == 200) {
 		state->floating = 1;
 	}
